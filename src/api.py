@@ -11,6 +11,7 @@ def scrape_data(category_id=None):
     """
     Scrape popular videos from Youtube API and return as Python list of dictionaries
     """
+    rank_counter = 1 # Initialize rank counter
     videos = []
     channel_ids = set()
 
@@ -24,7 +25,7 @@ def scrape_data(category_id=None):
 
     # If a category ID is provided, add it to the request parameters
     if category_id:
-        request_params["videoCategoryId"] = category_id
+        request_params["videoCategoryId"] = category_id  # This is the API param, not DB field
 
     try:
         # Handle the API request
@@ -37,9 +38,13 @@ def scrape_data(category_id=None):
 
             # Extract channel IDs to handle Channel table
             for video in items:
+                video["rank"] = rank_counter 
+                rank_counter += 1
+                
                 channel_id = video.get("snippet", {}).get("channelId")
                 if channel_id:
                     channel_ids.add(channel_id)
+                
 
             # Get next page token
             next_token = response.get("nextPageToken")
@@ -78,8 +83,8 @@ def get_channel_data(channel_ids):
 
         # Add the channels from this batch to the result
         for channel in response.get("items", []):
-            # Rename 'id' to 'channelId'
-            channel["channelId"] = channel.pop("id", None)
+            # Rename 'id' to 'channel_id' for DB consistency
+            channel["channel_id"] = channel.pop("id", None)
             channels.append(channel)
 
     return channels

@@ -30,9 +30,9 @@ def move_old_video_data():
             RETURNING *
             )
             INSERT INTO video_history (
-                "videoId", timestamp, title, description,"publishedAt", "viewCount", "likeCount", "commentCount", duration, tags, "channelId", "categoryId"
+                video_id, scraped_at, title, description, published_at, view_count, like_count, comment_count, duration, tags, channel_id, category_id
             )
-            SELECT id as "videoId", timestamp, title, description, "publishedAt", "viewCount","likeCount", "commentCount", duration, tags, "channelId", "categoryId"
+            SELECT id as video_id, scraped_at, title, description, published_at, view_count, like_count, comment_count, duration, tags, channel_id, category_id
             FROM moved_rows
         """)
         )
@@ -75,7 +75,7 @@ def add_record(item, table_class, session, table_cols):
     )
 
 
-def ingest_table(data_list, table_class, session, update_existing=False):
+def ingest_table(data_list, table_class, session):
     """
     Given a list of data, the target table, and current SQLAlchemy session,
     this function will ingest the data into the database.
@@ -94,45 +94,21 @@ def ingest_table(data_list, table_class, session, update_existing=False):
                 session.query(table_class).filter_by(**{p_k_field: p_k_arg}).first()
             )
 
-            from src.models import (  # Lazy import to prevent circular import
-                CategoryVideos,
-                PopularVideos,
-            )
-
-            # If record exists, update it
-            if existing_record:
-                # Update_existing should be true for channel logic only
-                if update_existing:
-                    snippet = item.get("snippet", {})
-                    statistics = item.get("statistics", {})
-                    # Update existing channel record
-                    existing_record.name = snippet.get("title")
-                    existing_record.description = snippet.get("description")
-                    existing_record.view_count = statistics.get("viewCount")
-                    existing_record.subscriber_count = statistics.get("subscriberCount")
-                    existing_record.video_count = statistics.get("videoCount")
-                    continue
-                else:
-                    continue
-            # If target table is PopularVideos, check if video exists in CategoryVideos table
-            elif table_class == PopularVideos:
-                existing_cat_vid = (
-                    session.query(CategoryVideos).filter_by(id=p_k_arg).first()
-                )
-                if not existing_cat_vid:
-                    add_record(
-                        item,
-                        CategoryVideos,
-                        session,
-                        {
-                            col.name for col in CategoryVideos.__table__.columns
-                        },  # Get columns for CategoryVideos
-                    )
-                    print(f"Added new CategoryVideos record with id {p_k_arg}.")
-                add_record(item, PopularVideos, session, "id")
+            # If record exists in channel table, update it
+            if table_class.__name__ == "Channels" and existing_record:
+                snippet = item.get("snippet", {})
+                statistics = item.get("statistics", {})
+                # Update existing channel record
+                existing_record.name = snippet.get("title")
+                existing_record.description = snippet.get("description")
+                existing_record.view_count = statistics.get("viewCount")
+                existing_record.subscriber_count = statistics.get("subscriberCount")
+                existing_record.video_count = statistics.get("videoCount")
                 continue
-            # Otherwise create new table class instance
-            add_record(item, table_class, session, table_cols)
+            else:
+                add_record(item, table_class, session, table_cols)
+                print(f"Added new {table_class.__name__} record with id {p_k_arg}.")
+                continue
         # Commit session
         session.commit()
     except Exception as e:
