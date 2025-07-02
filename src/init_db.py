@@ -30,7 +30,7 @@ def init_db():
             snippet = category.get("snippet", {})
             # Create a new Categories instance
             new_category = Categories(
-                categoryId=category.get("id"),
+                category_id=category.get("id"),
                 name=snippet.get("title"),
                 assignable=snippet.get("assignable"),
             )

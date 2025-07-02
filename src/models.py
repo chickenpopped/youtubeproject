@@ -37,19 +37,17 @@ class VideoData(Base):
     comment_count = Column(Integer, nullable=True)
     duration = Column(Interval, nullable=True)  # Stored as ISO8601 duration format
     tags = Column(Text, nullable=True)  # Store as comma-separated string for simplicity
-    video_type = Column(Enum(VideoType), nullable=False)  # Column for scrape type, e.g., "popular", or "category"
-
+    scrape_type = Column(Enum(VideoType), primary_key=True, nullable=False)  # Column for scrape type, e.g., "popular", or "category"
+    rank = Column(Integer, nullable=False)  # Rank of the video at the time of scrape
     # Foreign key to channels table
     channel_id = Column(String(255), ForeignKey("channels.channel_id"))
     # Foreign key to categories table
-    category_id = Column(Integer, ForeignKey("categories.category_id"))
+    category_id = Column(Integer, ForeignKey("categories.category_id"), primary_key=True)
 
-    # Relationship to popular videos table
-    popular_videos = relationship("PopularVideos", back_populates="videos")
     # Relationship to categories table
-    category = relationship("Categories", back_populates="category_videos")
+    category = relationship("Categories", back_populates="video_data")
     # Relationship to channels table
-    channel = relationship("Channels", back_populates="category_videos")
+    channel = relationship("Channels", back_populates="video_data")
 
 # Table for historical video data
 class VideoHistory(Base):
@@ -62,12 +60,15 @@ class VideoHistory(Base):
     description = Column(Text, nullable=True)
     published_at = Column(String(50), nullable=False)  # Store as string for simplicity
     view_count = Column(BigInteger, nullable=True)
+    view_delta = Column(BigInteger, default=0)  # Change in view count since last scrape
     like_count = Column(BigInteger, nullable=True)
+    like_delta = Column(BigInteger, default=0)  # Change in like count since last scrape
     comment_count = Column(Integer, nullable=True)
+    comment_delta = Column(Integer, default=0)  # Change in comment count since last scrape
     duration = Column(Interval, nullable=True)  # Stored as ISO8601 duration format
     tags = Column(Text, nullable=True)  # Store as comma-separated string for simplicity
-    rank = Column(Integer, nullable=True)  # Rank of the video at the time of scrape
-    video_id = Column(Enum(VideoType), nullable=False)  # Type of video, e.g., "popular", or "category" 
+    rank = Column(Integer, nullable=False)  # Rank of the video at the time of scrape
+    scrape_type = Column(Enum(VideoType), nullable=False)  # Type of video, e.g., "popular", or "category" 
     
     # Foreign key to channels table
     channel_id = Column(String(255), ForeignKey("channels.channel_id"))

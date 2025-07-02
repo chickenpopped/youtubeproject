@@ -3,18 +3,22 @@ from googleapiclient.errors import HttpError
 
 from src import api_key
 
+import re
+
 # Build youtube client
 youtube = build("youtube", "v3", developerKey=api_key)
 
+def camel_to_snake(name):
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 def scrape_data(category_id=None):
     """
     Scrape popular videos from Youtube API and return as Python list of dictionaries
     """
-    rank_counter = 1 # Initialize rank counter
     videos = []
     channel_ids = set()
-
+    
     # Initialize API request filters
     request_params = {
         "part": "snippet, statistics, contentDetails",
@@ -37,13 +41,19 @@ def scrape_data(category_id=None):
             videos.extend(items)
 
             # Extract channel IDs to handle Channel table
-            for video in items:
-                video["rank"] = rank_counter 
-                rank_counter += 1
-                
+            for video in items:                
                 channel_id = video.get("snippet", {}).get("channelId")
                 if channel_id:
                     channel_ids.add(channel_id)
+                for key in video:
+                    # Convert keys to snake_case
+                    if isinstance(video[key], dict):
+                        subkeys = list(video[key].keys())
+                        for subkey in subkeys:
+                            snake_subkey = camel_to_snake(subkey)
+                            if subkey != snake_subkey:
+                                video[key][snake_subkey] = video[key].pop(subkey)
+                
                 
 
             # Get next page token
@@ -54,6 +64,8 @@ def scrape_data(category_id=None):
             else:
                 # No more pages
                 break
+        for idx, video in enumerate(videos):
+            video["rank"] = idx + 1  # Add rank to each video based on its position in the list
     # Some categories do not return any videos under the mostPopular chart, but still have videos assigned to them, returning 404
     except HttpError as e:
         print(f"HTTP error {e.resp.status}: {e.content}")
@@ -85,6 +97,14 @@ def get_channel_data(channel_ids):
         for channel in response.get("items", []):
             # Rename 'id' to 'channel_id' for DB consistency
             channel["channel_id"] = channel.pop("id", None)
+            for key in channel:
+                # Convert keys to snake_case
+                if isinstance(channel[key], dict):
+                    subkeys = list(channel[key].keys())
+                    for subkey in subkeys:
+                        snake_subkey = camel_to_snake(subkey)
+                        if subkey != snake_subkey:
+                            channel[key][snake_subkey] = channel[key].pop(subkey)
             channels.append(channel)
 
     return channels

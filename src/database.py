@@ -1,4 +1,5 @@
 import isodate
+from pyparsing import col
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import text
@@ -86,14 +87,15 @@ def ingest_table(data_list, table_class, session):
 
         for item in data_list:
             # Check if record exists in table
-            p_k_field = list(table_class.__table__.primary_key.columns)[
-                0
-            ].name  # Get primary key field name
-            p_k_arg = item.get(p_k_field)  # Get primary key argument from item
+            p_k_fields = [col.name for col in table_class.__table__.primary_key.columns]  # Get primary key field names
+            p_k_args = {field: item.get(field) for field in p_k_fields}  # Get primary key arguments from item
             existing_record = (
-                session.query(table_class).filter_by(**{p_k_field: p_k_arg}).first()
+                session.query(table_class).filter_by(**p_k_args).first()
             )
-
+            # If record exists in video data table, do not add it again
+            if table_class.__name__ == "VideoData" and existing_record:
+                print(f"Record already exists in {table_class.__name__} table with id {p_k_args}. Skipping.")
+                continue
             # If record exists in channel table, update it
             if table_class.__name__ == "Channels" and existing_record:
                 snippet = item.get("snippet", {})
@@ -107,7 +109,7 @@ def ingest_table(data_list, table_class, session):
                 continue
             else:
                 add_record(item, table_class, session, table_cols)
-                print(f"Added new {table_class.__name__} record with id {p_k_arg}.")
+                print(f"Added new {table_class.__name__} record with id {p_k_args}.")
                 continue
         # Commit session
         session.commit()

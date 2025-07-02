@@ -3,6 +3,8 @@ from src.init_db import init_db, reset_db
 
 
 def main():
+    reset_db()
+    init_db()
     ingest_data()
 
 

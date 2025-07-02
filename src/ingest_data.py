@@ -15,22 +15,24 @@ def ingest_data():
     categories = session.query(Categories).all()
 
     # Scrape popular videos in each category
-    cat_videos, channel_ids = (
-        [],
-        set(),
-    )  # We want channel ids across both video sets to be unified
-
+    cat_videos, channel_ids = [], set()
+    temp_vid = []
+    dupe_videos = []
     for category in categories:
-        print(f"Scraping category: {category.categoryId}")
+        print(f"Scraping category: {category.category_id}")
         # Check for assignability
         if not category.assignable:
             continue
-        cat_video_data, cat_channel_data = scrape_data(category.categoryId)
+        cat_video_data, cat_channel_data = scrape_data(category.category_id)            
         for video in cat_video_data:
             video["scrape_type"] = VideoType.category  # Set scrape type for category videos
+            if (video["id"], video["scrape_type"], video["snippet"]["category_id"]) in temp_vid:
+                dupe_videos.append((video["id"], video["scrape_type"], video["snippet"]["category_id"], video["rank"]))
+                continue
+            temp_vid.append((video["id"], video["scrape_type"], video["snippet"]["category_id"]))
         cat_videos.extend(cat_video_data)
         channel_ids.update(cat_channel_data)
-
+    print(dupe_videos)
     # Scrape popular videos in general
     pop_videos, pop_channel_ids = scrape_data()
     for video in pop_videos:
