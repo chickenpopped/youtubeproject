@@ -1,6 +1,7 @@
 # (Reset and) initialize the database and populate it with categories from the YouTube API.
 from src.api import get_video_categories
-from src.database import Base, SessionLocal, engine
+from src.database import SessionLocal, engine
+from src.base import Base
 from src.models import Categories
 
 
