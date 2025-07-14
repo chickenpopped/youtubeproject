@@ -65,15 +65,48 @@ def ingest_data():
         print("Videos ingested successfully.")
         
         # Insert channel averages and popular counts
+        # Subquery for unique videos by unique id and channel id
+        unique_videos = select(
+            VideoData.channel_id,
+            VideoData.id,
+            VideoData.like_count,
+            VideoData.comment_count,
+            VideoData.view_count
+        ).distinct(VideoData.channel_id, VideoData.id).subquery()
+             
+        total_likes = (
+            select(func.sum(unique_videos.c.like_count))
+            .where(unique_videos.c.channel_id == Channels.channel_id)
+            .correlate(Channels)
+            .scalar_subquery()
+        )
+        total_comments = (
+            select(func.sum(unique_videos.c.comment_count))
+            .where(unique_videos.c.channel_id == Channels.channel_id)
+            .correlate(Channels)
+            .scalar_subquery()
+        )
+        total_views = (
+            select(func.sum(unique_videos.c.view_count))
+            .where(unique_videos.c.channel_id == Channels.channel_id)
+            .correlate(Channels)
+            .scalar_subquery()
+        )
+        avg_views = (
+            select(func.avg(unique_videos.c.view_count))
+            .where(unique_videos.c.channel_id == Channels.channel_id)
+            .correlate(Channels)
+            .scalar_subquery()
+        )
         avg_likes = (
-            select(func.avg(VideoData.like_count))
-            .where(VideoData.channel_id == Channels.channel_id)
+            select(func.avg(unique_videos.c.like_count))
+            .where(unique_videos.c.channel_id == Channels.channel_id)
             .correlate(Channels)
             .scalar_subquery()
         )
         avg_comments = (
-            select(func.avg(VideoData.comment_count))
-            .where(VideoData.channel_id == Channels.channel_id)
+            select(func.avg(unique_videos.c.comment_count))
+            .where(unique_videos.c.channel_id == Channels.channel_id)
             .correlate(Channels)
             .scalar_subquery()
         )
@@ -88,6 +121,10 @@ def ingest_data():
         session.execute(
             update(Channels)
             .values(
+                like_count=total_likes,
+                comment_count=total_comments,
+                popular_view_count=total_views,
+                average_views=avg_views,
                 average_likes=avg_likes,
                 average_comments=avg_comments,
                 popular_count=popular_count

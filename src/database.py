@@ -22,9 +22,9 @@ def move_old_video_data():
         current_videos = session.query(VideoData).all() # Query all current videos
         video_ids = [v.id for v in current_videos] # Get list of video IDs
         current_channels = session.query(Channels).all()
-        channel_ids = [c.id for c in current_channels]  # Get list of channel IDs
+        channel_ids = [c.channel_id for c in current_channels]  # Get list of channel IDs
         
-        # Query VideoHistory table for all rows that have matching video ids
+        # Query history tables for all rows that have matching ids
         prev_vid_histories = (
             session.query(VideoHistory)
             .filter(VideoHistory.video_id.in_(video_ids))
@@ -38,7 +38,7 @@ def move_old_video_data():
             .all()
         )
         
-        # Mapping of all previous histories by video_id
+        # Mapping of all previous histories by id
         prev_map_vid = {}
         for h in prev_vid_histories:
             if h.video_id not in prev_map_vid:
@@ -73,17 +73,27 @@ def move_old_video_data():
         ]
         c_history = [
             dict(
-                channel_id = channel.id,
+                channel_id = channel.channel_id,
                 scraped_at = channel.scraped_at,
                 title = channel.title,
                 description = channel.description,
                 published_at = channel.published_at,
                 view_count = channel.view_count,
-                view_delta = (channel.view_count - prev_map_channel[channel.id].view_count) if channel.id in prev_map_channel else None,
+                view_delta = (channel.view_count - prev_map_channel[channel.channel_id].view_count) if channel.channel_id in prev_map_channel else None,
+                popular_view_count = channel.popular_view_count,
+                popular_view_delta = (channel.popular_view_count - prev_map_channel[channel.channel_id].popular_view_count) if channel.channel_id in prev_map_channel else None,
+                average_views = channel.average_views,
+                average_view_delta = (channel.average_views - prev_map_channel[channel.channel_id].average_views) if channel.channel_id in prev_map_channel else None,
+                like_count = channel.like_count,
+                like_delta = (channel.like_count - prev_map_channel[channel.channel_id].like_count) if channel.channel_id in prev_map_channel else None,
+                comment_count = channel.comment_count,
+                comment_delta = (channel.comment_count - prev_map_channel[channel.channel_id].comment_count) if channel.channel_id in prev_map_channel else None,
+                average_comments = channel.average_comments,
+                average_comment_delta = (channel.average_comments - prev_map_channel[channel.channel_id].average_comments) if channel.channel_id in prev_map_channel else None,
                 subscriber_count = channel.subscriber_count,
-                subscriber_delta = (channel.subscriber_count - prev_map_channel[channel.id].subscriber_count) if channel.id in prev_map_channel else None,
+                subscriber_delta = (channel.subscriber_count - prev_map_channel[channel.channel_id].subscriber_count) if channel.channel_id in prev_map_channel else None,
                 video_count = channel.video_count,
-                video_delta = (channel.video_count - prev_map_channel[channel.id].video_count) if channel.id in prev_map_channel else None
+                video_delta = (channel.video_count - prev_map_channel[channel.channel_id].video_count) if channel.channel_id in prev_map_channel else None
             )
             for channel in current_channels
         ]

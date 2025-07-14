@@ -31,9 +31,9 @@ class VideoData(Base):
     pk_id = Column(Integer, primary_key=True, autoincrement=True)  # Primary key for the table
     id = Column(String(255), index=True)  # Id of the video
     title = Column(String(255), nullable=False)
-    scraped_at = Column(DateTime, nullable=False, server_default=func.now())  # Timestamp scrape
+    scraped_at = Column(DateTime, nullable=False, server_default=func.now())  # Timestamp of scrape
     description = Column(Text, nullable=True)
-    published_at = Column(String(50), nullable=False)  # Store as string for simplicity
+    published_at = Column(DateTime, nullable=False)
     view_count = Column(BigInteger, nullable=True)
     like_count = Column(BigInteger, nullable=True)
     comment_count = Column(Integer, nullable=True)
@@ -65,17 +65,18 @@ class VideoHistory(Base):
     scraped_at = Column(DateTime, nullable=False)  # Timestamp of scrape
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    published_at = Column(String(50), nullable=False)  # Store as string for simplicity
+    published_at = Column(DateTime, nullable=False)
     view_count = Column(BigInteger, nullable=True)
     view_delta = Column(BigInteger, default=0)  # Change in view count since last scrape
     like_count = Column(BigInteger, nullable=True)
     like_delta = Column(BigInteger, default=0)  # Change in like count since last scrape
     comment_count = Column(Integer, nullable=True)
     comment_delta = Column(Integer, default=0)  # Change in comment count since last scrape
-    duration = Column(Interval, nullable=True)  # Stored as ISO8601 duration format
-    tags = Column(Text, nullable=True)  # Store as comma-separated string for simplicity
+    duration = Column(Interval, nullable=True)
+    tags = Column(Text, nullable=True)  
     rank = Column(Integer, nullable=False)  # Rank of the video at the time of scrape
-    scrape_type = Column(Enum(VideoType), nullable=False)  # Type of video, e.g., "popular", or "category"
+    scrape_type = Column(Enum(VideoType), nullable=False) 
+    scrape_category = Column(Integer, nullable=True)  
     channel_id = Column(String(255), nullable=False)  # Channel ID of parent channel
     category_id = Column(Integer, nullable=True)  # Category ID of the video
 
@@ -99,12 +100,16 @@ class Channels(Base):
     scraped_at = Column(DateTime, nullable=False, server_default=func.now())  # Timestamp of scrape
     title = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
-    published_at = Column(DateTime, nullable=False)  # Timestamp of channel creation        
-    view_count = Column(BigInteger, nullable=True)
+    published_at = Column(DateTime, nullable=False)
+    view_count = Column(BigInteger, nullable=True) # Total view count of all videos
+    popular_view_count = Column(BigInteger, nullable=True)  # Total view count of popular videos
+    average_views = Column(BigInteger, nullable=True)  # Average views per popular video
     subscriber_count = Column(BigInteger, nullable=True)
     video_count = Column(Integer, nullable=True)
     popular_count = Column(Integer, nullable=True)  # Number of popular videos from channel
-    average_likes = Column(BigInteger, nullable=True)   # Average likes per popular video
+    like_count = Column(BigInteger, nullable=True)
+    comment_count = Column(BigInteger, nullable=True)
+    average_likes = Column(BigInteger, nullable=True)
     average_comments = Column(BigInteger, nullable=True)
     
     # Relationship to VideoData table
@@ -115,21 +120,29 @@ class ChannelHistory(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)  # Unique ID for the row
     channel_id = Column(String(255), nullable=False) # ID of the channel
-    scraped_at = Column(DateTime, nullable=False)  # Timestamp of scrape
+    scraped_at = Column(DateTime, nullable=False)
     title = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     published_at = Column(DateTime, nullable=False)
     view_count = Column(BigInteger, nullable=True)
     view_delta = Column(BigInteger, nullable=True)
+    popular_view_count = Column(BigInteger, nullable=True)
+    popular_view_delta = Column(BigInteger, nullable=True)
+    average_views = Column(BigInteger, nullable=True)
+    average_view_delta = Column(BigInteger, nullable=True)
+    like_count = Column(BigInteger, nullable=True)
+    like_delta = Column(BigInteger, nullable=True)
+    average_likes = Column(BigInteger, nullable=True)
+    average_like_delta = Column(BigInteger, nullable=True)
+    comment_count = Column(BigInteger, nullable=True)
+    comment_delta = Column(BigInteger, nullable=True)
+    average_comments = Column(BigInteger, nullable=True)
+    average_comment_delta = Column(BigInteger, nullable=True)
     subscriber_count = Column(BigInteger, nullable=True)
     subscriber_delta = Column(BigInteger, nullable=True)
     video_count = Column(Integer, nullable=True)
     video_delta = Column(Integer, nullable=True)
-    average_likes = Column(BigInteger, nullable=True)
-    average_like_delta = Column(BigInteger, nullable=True)
-    average_comments = Column(BigInteger, nullable=True)
-    average_comment_delta = Column(BigInteger, nullable=True)
-    popular_count = Column(Integer, nullable=True)  # Number of popular videos from channel
-    popular_count_delta = Column(Integer, nullable=True)  # Change in popular video count since last scrape
+    popular_count = Column(Integer, nullable=True)
+    popular_count_delta = Column(Integer, nullable=True)
     
     
