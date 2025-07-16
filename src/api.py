@@ -1,16 +1,18 @@
+import re
+
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from src import api_key
 
-import re
-
 # Build youtube client
 youtube = build("youtube", "v3", developerKey=api_key)
 
+
 def camel_to_snake(name):
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
 
 def scrape_data(category_id=None):
     """
@@ -18,7 +20,7 @@ def scrape_data(category_id=None):
     """
     videos = []
     channel_ids = set()
-    
+
     # Initialize API request filters
     request_params = {
         "part": "snippet, statistics, contentDetails",
@@ -29,7 +31,9 @@ def scrape_data(category_id=None):
 
     # If a category ID is provided, add it to the request parameters
     if category_id:
-        request_params["videoCategoryId"] = category_id  # This is the API param, not DB field
+        request_params["videoCategoryId"] = (
+            category_id  # This is the API param, not DB field
+        )
 
     try:
         # Handle the API request
@@ -41,7 +45,7 @@ def scrape_data(category_id=None):
             videos.extend(items)
 
             # Extract channel IDs to handle Channel table
-            for video in items:                
+            for video in items:
                 channel_id = video.get("snippet", {}).get("channelId")
                 if channel_id:
                     channel_ids.add(channel_id)
@@ -53,8 +57,6 @@ def scrape_data(category_id=None):
                             snake_subkey = camel_to_snake(subkey)
                             if subkey != snake_subkey:
                                 video[key][snake_subkey] = video[key].pop(subkey)
-                
-                
 
             # Get next page token
             next_token = response.get("nextPageToken")
@@ -65,7 +67,9 @@ def scrape_data(category_id=None):
                 # No more pages
                 break
         for idx, video in enumerate(videos):
-            video["rank"] = idx + 1  # Add rank to each video based on its position in the list
+            video["rank"] = (
+                idx + 1
+            )  # Add rank to each video based on its position in the list
     # Some categories do not return any videos under the mostPopular chart, but still have videos assigned to them, returning 404
     except HttpError as e:
         print(f"HTTP error {e.resp.status}: {e.content}")

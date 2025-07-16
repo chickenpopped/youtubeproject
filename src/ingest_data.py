@@ -1,14 +1,16 @@
+from sqlalchemy import distinct, func, select, update
+
 from src.api import get_channel_data, scrape_data
-from src.database import SessionLocal, ingest_table, move_old_video_data
-from src.models import Categories, VideoData, Channels, VideoType
-from sqlalchemy import func, select, update, distinct
+from src.database import SessionLocal, ingest_table, move_old_videos
+from src.models import Categories, Channels, VideoData, VideoType
+
 
 def ingest_data():
     """
     Ingest data from the YouTube API into the database.
     """
     # Move old video data to history table
-    move_old_video_data()
+    move_old_videos()
 
     # Query Categories table for category IDs
     session = SessionLocal()
@@ -21,32 +23,35 @@ def ingest_data():
         # Check for assignability
         if not category.assignable:
             continue
-        cat_video_data, cat_channel_data = scrape_data(category.category_id)            
+        cat_video_data, cat_channel_data = scrape_data(category.category_id)
         for video in cat_video_data:
-            video["scrape_type"] = VideoType.category  # Set scrape type for category videos
+            video["scrape_type"] = (
+                VideoType.category
+            )  # Set scrape type for category videos
             video["scrape_category"] = category.category_id
         cat_videos.extend(cat_video_data)
         channel_ids.update(cat_channel_data)
     # Scrape popular videos in general
     pop_videos, pop_channel_ids = scrape_data()
     for video in pop_videos:
-        video["scrape_type"] = VideoType.popular # Set scrape type for popular videos
+        video["scrape_type"] = VideoType.popular  # Set scrape type for popular videos
         video["scrape_category"] = None  # No category for general popular videos
-    
+
     channel_ids.update(pop_channel_ids)
     channel_ids = list(channel_ids)  # handle duplicate channels
-    
+
     # Concat video lists
     videos = cat_videos + pop_videos
-    
+
     # Deduplicate videos based on unique constraints
     seen = set()
     unique_videos = []
     for video in videos:
         if (video["id"], video["scrape_type"], video["scrape_category"]) not in seen:
             seen.add((video["id"], video["scrape_type"], video["scrape_category"]))
+            video["video_id"] = video.pop("id")  # Rename id to video_id
             unique_videos.append(video)
-    
+
     print(
         f"Scraped {len(channel_ids)} channels, {len(cat_videos)} category videos, {len(pop_videos)} popular videos."
     )
@@ -55,7 +60,7 @@ def ingest_data():
     try:
         # Fetch channel data
         channels = get_channel_data(channel_ids)
-        
+
         # Ingest channel data
         ingest_table(channels, Channels, session)
         print("Channels ingested successfully.")
@@ -63,17 +68,21 @@ def ingest_data():
         # Ingest videos
         ingest_table(unique_videos, VideoData, session)
         print("Videos ingested successfully.")
-        
+
         # Insert channel averages and popular counts
         # Subquery for unique videos by unique id and channel id
-        unique_videos = select(
-            VideoData.channel_id,
-            VideoData.id,
-            VideoData.like_count,
-            VideoData.comment_count,
-            VideoData.view_count
-        ).distinct(VideoData.channel_id, VideoData.id).subquery()
-             
+        unique_videos = (
+            select(
+                VideoData.channel_id,
+                VideoData.video_id,
+                VideoData.like_count,
+                VideoData.comment_count,
+                VideoData.view_count,
+            )
+            .distinct(VideoData.channel_id, VideoData.video_id)
+            .subquery()
+        )
+
         total_likes = (
             select(func.sum(unique_videos.c.like_count))
             .where(unique_videos.c.channel_id == Channels.channel_id)
@@ -111,12 +120,12 @@ def ingest_data():
             .scalar_subquery()
         )
         popular_count = (
-            select(func.count(distinct(VideoData.id)))
+            select(func.count(distinct(VideoData.video_id)))
             .where(VideoData.channel_id == Channels.channel_id)
             .correlate(Channels)
             .scalar_subquery()
         )
-        
+
         # Update channel averages and popular counts
         session.execute(
             update(Channels)
@@ -127,8 +136,8 @@ def ingest_data():
                 average_views=avg_views,
                 average_likes=avg_likes,
                 average_comments=avg_comments,
-                popular_count=popular_count
-                )
+                popular_count=popular_count,
+            )
             .where(Channels.channel_id == VideoData.channel_id)
         )
         # Commit session
