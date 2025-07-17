@@ -1,8 +1,8 @@
 from sqlalchemy import distinct, func, select, update
 
 from src.api import get_channel_data, scrape_data
-from src.database import SessionLocal, ingest_table, move_old_videos
-from src.models import Categories, Channels, VideoData, VideoType
+from src.database.database import SessionLocal, ingest_table, move_old_videos
+from src.database.models import Categories, Channels, VideoData, VideoType
 
 
 def ingest_data():
