@@ -1,7 +1,7 @@
 import sys
 
-from src.ingest_data import ingest_data
-from src.init_db import init_db, reset_db
+from src.core.ingest_data import ingest_data
+from src.database.init_db import init_db, reset_db
 
 
 def main():

@@ -1,8 +1,8 @@
 # (Reset and) initialize the database and populate it with categories from the YouTube API.
-from src.api import get_video_categories
-from src.database import SessionLocal, engine
-from src.base import Base
-from src.models import Categories
+from src.core.api import get_video_categories
+from src.database.base import Base
+from src.database.database import SessionLocal, engine
+from src.database.models import Categories
 
 
 def reset_db():

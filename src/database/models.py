@@ -18,7 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from src.base import Base
+from src.database.base import Base
 
 
 class VideoType(enum.Enum):

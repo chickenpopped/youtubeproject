@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 
 # Load environment variables from source
 from src import database_url
-from src.models import ChannelHistory, Channels, VideoData, VideoHistory
+from src.database.models import ChannelHistory, Channels, VideoData, VideoHistory
 
 engine = create_engine(database_url, echo=True)
 
