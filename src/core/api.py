@@ -49,6 +49,22 @@ def scrape_data(category_id=None):
                 channel_id = video.get("snippet", {}).get("channelId")
                 if channel_id:
                     channel_ids.add(channel_id)
+                
+                # Handle tags conversion - convert list to comma-separated string
+                snippet = video.get("snippet", {})
+                if "tags" in snippet and isinstance(snippet["tags"], list):
+                    # Join tags with commas, truncate to 500 chars if needed
+                    tags_string = ", ".join(snippet["tags"])
+                    if len(tags_string) > 500:
+                        # Truncate at last complete tag that fits within 500 chars
+                        truncated = tags_string[:497]  # Leave room for "..."
+                        last_comma = truncated.rfind(", ")
+                        if last_comma > 0:
+                            tags_string = truncated[:last_comma] + "..."
+                        else:
+                            tags_string = truncated + "..."
+                    snippet["tags"] = tags_string
+                
                 for key in video:
                     # Convert keys to snake_case
                     if isinstance(video[key], dict):
