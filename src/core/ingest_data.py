@@ -32,46 +32,48 @@ def ingest_data():
         # Scrape popular videos in general
         pop_videos, pop_channel_ids = scrape_data()
         for video in pop_videos:
-            video["scrape_type"] = VideoType.popular  # Set scrape type for popular videos
+            video["scrape_type"] = (
+                VideoType.popular
+            )  # Set scrape type for popular videos
             video["scrape_category"] = None  # No category for general popular videos
 
         channel_ids.update(pop_channel_ids)
 
         videos = cat_videos + pop_videos
 
-        # Deduplicate videos based on unique constraints
         seen_videos = set()
         unique_videos = []
         for video in videos:
-            if (video["id"], video["scrape_type"], video["scrape_category"]) not in seen_videos:
-                seen_videos.add((video["id"], video["scrape_type"], video["scrape_category"]))
-                video["video_id"] = video.pop("id")  # Rename id to video_id
+            if (
+                video["id"],
+                video["scrape_type"],
+                video["scrape_category"],
+            ) not in seen_videos:
+                seen_videos.add(
+                    (video["id"], video["scrape_type"], video["scrape_category"])
+                )
+                video["video_id"] = video.pop("id")
                 unique_videos.append(video)
 
         print(
             f"Scraped {len(channel_ids)} channels, {len(cat_videos)} category videos, {len(pop_videos)} popular videos."
         )
 
-        channels = get_channel_data(channel_ids)
-        
-        # Deduplicate channels by channel_id to prevent primary key violations
+        channels = get_channel_data(list(channel_ids))
+
         seen_channels = set()
         unique_channels = []
         for channel in channels:
             if channel["channel_id"] not in seen_channels:
                 seen_channels.add(channel["channel_id"])
                 unique_channels.append(channel)
-        
-        # Ingest channel data
+
         ingest_table(unique_channels, Channels, session)
         print("Channels ingested successfully.")
 
-        # Ingest videos
         ingest_table(unique_videos, VideoData, session)
         print("Videos ingested successfully.")
 
-        # Insert channel averages and popular counts
-        # Subquery for unique videos by unique id and channel id
         unique_videos = (
             select(
                 VideoData.channel_id,

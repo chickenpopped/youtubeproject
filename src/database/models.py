@@ -3,11 +3,13 @@
 import enum
 
 from sqlalchemy import (
+    ARRAY,
     BigInteger,
     Boolean,
     Column,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     Interval,
@@ -26,7 +28,6 @@ class VideoType(enum.Enum):
     category = "category"
 
 
-# Table for videos
 class VideoData(Base):
     __tablename__ = "video_data"
 
@@ -35,19 +36,15 @@ class VideoData(Base):
     )  # Primary key for the table
     video_id = Column(String(255), index=True)  # Id of the video
     title = Column(String(255), nullable=False)
-    scraped_at = Column(
-        DateTime, nullable=False, server_default=func.now()
-    )  # Timestamp of scrape
+    scraped_at = Column(DateTime, nullable=False, server_default=func.now())
     description = Column(Text, nullable=True)
     published_at = Column(DateTime, nullable=False)
     view_count = Column(BigInteger, nullable=True)
     like_count = Column(BigInteger, nullable=True)
     comment_count = Column(Integer, nullable=True)
     duration = Column(Interval, nullable=True)  # Stored as ISO8601 duration format
-    tags = Column(Text, nullable=True)  # Store as comma-separated string for simplicity
-    scrape_type = Column(
-        Enum(VideoType), nullable=False
-    )  # Column for scrape type, e.g., "popular", or "category"
+    tags = Column(ARRAY(String), nullable=True)
+    scrape_type = Column(Enum(VideoType), nullable=False)  # Column for scrape type
     scrape_category = Column(
         Integer, nullable=True
     )  # Category ID of scraped category for category scrape type
@@ -57,16 +54,14 @@ class VideoData(Base):
     # Foreign key to categories table
     category_id = Column(Integer, ForeignKey("categories.category_id"))
 
-    # Relationship to categories table
     category = relationship("Categories", back_populates="video_data")
-    # Relationship to channels table
     channel = relationship("Channels", back_populates="video_data")
 
     __table_args__ = (
         UniqueConstraint(
             "video_id", "scrape_type", "scrape_category", name="uq_video_scrape"
         ),
-    )  # Ensure unique combination of video ID, scrape type, and scrape category
+    )
 
 
 # Table for historical video data
@@ -75,29 +70,29 @@ class VideoHistory(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)  # Unique ID for the row
     video_id = Column(String(255), nullable=False)  # ID of the video
-    scraped_at = Column(DateTime, nullable=False)  # Timestamp of scrape
+    scraped_at = Column(DateTime, nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     published_at = Column(DateTime, nullable=False)
     view_count = Column(BigInteger, nullable=True)
-    view_count_delta = Column(
-        BigInteger, default=0
-    )  # Change in view count since last scrape
+    view_count_delta = Column(BigInteger, default=0)
     like_count = Column(BigInteger, nullable=True)
-    like_count_delta = Column(
-        BigInteger, default=0
-    )  # Change in like count since last scrape
+    like_count_delta = Column(BigInteger, default=0)
     comment_count = Column(Integer, nullable=True)
-    comment_count_delta = Column(
-        Integer, default=0
-    )  # Change in comment count since last scrape
+    comment_count_delta = Column(Integer, default=0)
     duration = Column(Interval, nullable=True)
-    tags = Column(Text, nullable=True)
+    tags = Column(ARRAY(String), nullable=True)
     rank = Column(Integer, nullable=False)  # Rank of the video at the time of scrape
     scrape_type = Column(Enum(VideoType), nullable=False)
     scrape_category = Column(Integer, nullable=True)
-    channel_id = Column(String(255), nullable=False)  # Channel ID of parent channel
+    channel_id = Column(String(255), nullable=False)
     category_id = Column(Integer, nullable=True)  # Category ID of the video
+
+    days_since_scrape = Column(Float, nullable=True)
+
+    view_growth_per_day = Column(Float, nullable=True)
+    like_growth_per_day = Column(Float, nullable=True)
+    comment_growth_per_day = Column(Float, nullable=True)
 
 
 class Categories(Base):
@@ -107,7 +102,6 @@ class Categories(Base):
     name = Column(String(50), nullable=False)
     assignable = Column(Boolean, nullable=False)
 
-    # Relationship to VideoData table
     video_data = relationship("VideoData", back_populates="category")
 
 
@@ -136,7 +130,6 @@ class Channels(Base):
     average_likes = Column(BigInteger, nullable=True)
     average_comments = Column(BigInteger, nullable=True)
 
-    # Relationship to VideoData table
     video_data = relationship("VideoData", back_populates="channel")
 
 
@@ -166,6 +159,19 @@ class ChannelHistory(Base):
     subscriber_count = Column(BigInteger, nullable=True)
     subscriber_count_delta = Column(BigInteger, nullable=True)
     video_count = Column(Integer, nullable=True)
-    video_count_elta = Column(Integer, nullable=True)
+    video_count_delta = Column(Integer, nullable=True)
     popular_count = Column(Integer, nullable=True)
     popular_count_delta = Column(Integer, nullable=True)
+
+    days_since_scrape = Column(Float, nullable=True)
+
+    view_growth_per_day = Column(Float, nullable=True)
+    popular_view_growth_per_day = Column(Float, nullable=True)
+    average_view_growth_per_day = Column(Float, nullable=True)
+    like_growth_per_day = Column(Float, nullable=True)
+    average_like_growth_per_day = Column(Float, nullable=True)
+    comment_growth_per_day = Column(Float, nullable=True)
+    average_comment_growth_per_day = Column(Float, nullable=True)
+    subscriber_growth_per_day = Column(Float, nullable=True)
+    video_growth_per_day = Column(Float, nullable=True)
+    popular_count_growth_per_day = Column(Float, nullable=True)
