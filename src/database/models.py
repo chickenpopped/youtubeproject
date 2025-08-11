@@ -125,10 +125,10 @@ class Channels(Base):
     popular_count = Column(
         Integer, nullable=True
     )  # Number of popular videos from channel
-    like_count = Column(BigInteger, nullable=True)
-    comment_count = Column(BigInteger, nullable=True)
-    average_likes = Column(BigInteger, nullable=True)
-    average_comments = Column(BigInteger, nullable=True)
+    like_count = Column(BigInteger, nullable=True) # Total like count for popular videos
+    comment_count = Column(BigInteger, nullable=True) # Total comment count for popular videos
+    average_likes = Column(BigInteger, nullable=True) # Average like count for popular videos
+    average_comments = Column(BigInteger, nullable=True) # Average comment count for popular videos
 
     video_data = relationship("VideoData", back_populates="channel")
 

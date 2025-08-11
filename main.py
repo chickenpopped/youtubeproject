@@ -17,6 +17,7 @@ def main():
             print("Invalid command. Use 'reset', 'init', or 'ingest'.")
     else:
         print("No command provided. Use 'reset', 'init', or 'ingest'.")
+        ingest_data()
 
 
 if __name__ == "__main__":

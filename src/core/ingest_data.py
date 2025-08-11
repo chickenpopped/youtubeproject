@@ -1,8 +1,9 @@
-from sqlalchemy import distinct, func, select, update
+from datetime import datetime, timedelta, timezone
+from sqlalchemy import distinct, func, select, update, union_all
 
 from src.core.api import get_channel_data, scrape_data
 from src.database.database import SessionLocal, ingest_table, move_old_data
-from src.database.models import Categories, Channels, VideoData, VideoType
+from src.database.models import Categories, Channels, VideoData, VideoType, VideoHistory
 
 
 def ingest_data():
@@ -68,6 +69,7 @@ def ingest_data():
                 seen_channels.add(channel["channel_id"])
                 unique_channels.append(channel)
 
+
         ingest_table(unique_channels, Channels, session)
         print("Channels ingested successfully.")
 
@@ -122,13 +124,27 @@ def ingest_data():
             .correlate(Channels)
             .scalar_subquery()
         )
+
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=7)  # 7 day cutoff
+
+        popular_historical = (
+            select(VideoHistory.channel_id, VideoHistory.video_id)
+            .where(VideoHistory.scraped_at >= cutoff_date)
+        )   # Query for popular videos in history from past 7 days
+
+        popular_current = (
+            select(VideoData.channel_id, VideoData.video_id)
+        )   # Query for current popular videos
+
+        popular_union = union_all(popular_historical, popular_current).subquery()
+
         popular_count = (
-            select(func.count(distinct(VideoData.video_id)))
-            .where(VideoData.channel_id == Channels.channel_id)
+            select(func.count(distinct(popular_union.c.video_id)))
+            .where(popular_union.c.channel_id == Channels.channel_id)
             .correlate(Channels)
             .scalar_subquery()
-        )
-
+        )   # Query for count of popular videos for each channel in past 7 days, including current scrape
+        
         # Update channel averages and popular counts
         session.execute(
             update(Channels)

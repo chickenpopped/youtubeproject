@@ -46,7 +46,7 @@ def move_old_data(session: Session) -> None:
         current_videos = session.query(VideoData).all()
         current_channels = session.query(Channels).all()
 
-        if not current_videos and not current_channels:
+        if not current_videos or not current_channels:
             print("No data to move")
             return
 
@@ -84,6 +84,7 @@ def move_old_data(session: Session) -> None:
             "tags",
             "rank",
             "scrape_type",
+            "scrape_category",
             "channel_id",
             "category_id",
         ]
@@ -103,6 +104,7 @@ def move_old_data(session: Session) -> None:
             "popular_view_count",
             "average_views",
             "like_count",
+            "average_likes",
             "comment_count",
             "average_comments",
             "subscriber_count",
@@ -114,6 +116,7 @@ def move_old_data(session: Session) -> None:
             "popular_view_count",
             "average_views",
             "like_count",
+            "average_likes",
             "comment_count",
             "average_comments",
             "subscriber_count",
@@ -133,7 +136,8 @@ def move_old_data(session: Session) -> None:
                 delta = calc_diff(entry[field], prev_val)
                 entry[f"{field}_delta"] = delta
                 growth = growth_per_day(delta, day_diff)
-                entry[f"{field.replace('_count', '')}_growth_per_day"] = growth
+                if field.endswith('_count'):
+                    entry[f"{field.replace('_count', '')}_growth_per_day"] = growth
             v_history.append(entry)
         c_history = []
         for channel in current_channels:
@@ -148,6 +152,10 @@ def move_old_data(session: Session) -> None:
                 entry[f"{field}_delta"] = delta
                 growth = growth_per_day(delta, day_diff)
                 entry[f"{field.replace('_count', '')}_growth_per_day"] = growth
+                if field.endswith('_count'):
+                    entry[f"{field.replace('_count', '')}_growth_per_day"] = growth
+                elif field.startswith('average_'):
+                    entry[f"{field[:-1]}_growth_per_day"] = growth
             c_history.append(entry)
 
         session.execute(insert(VideoHistory), v_history)
@@ -207,7 +215,6 @@ def ingest_table(data_list, table_class, session: Session) -> None:
             print(
                 f"Added new {table_class.__name__} record with {p_k_fields} : {p_k_args}."
             )
-        session.commit()
     except Exception as e:
         session.rollback()
         print(f"Error ingesting to table: {e}")

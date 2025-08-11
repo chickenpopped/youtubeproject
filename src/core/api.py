@@ -14,7 +14,7 @@ def camel_to_snake(name):
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
-def scrape_data(category_id=None):
+def scrape_data(category_id=None) -> tuple[list[dict], list[str]]:
     """
     Scrape popular videos from Youtube API and return as Python list of dictionaries
     """
