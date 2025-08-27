@@ -1,8 +1,7 @@
 from datetime import datetime
 
 import isodate
-from sqlalchemy import create_engine, delete, insert
-from sqlalchemy.orm import Session, sessionmaker
+from sqlmodel import Session, create_engine, select, insert, delete, col
 
 # Load environment variables from source
 from src import database_url
@@ -10,8 +9,8 @@ from src.database.models import ChannelHistory, Channels, VideoData, VideoHistor
 
 engine = create_engine(database_url, echo=True)
 
-# Create session
-SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+def get_session():
+    return Session(engine)
 
 
 def calc_diff(current, previous):
@@ -43,8 +42,8 @@ def move_old_data(session: Session) -> None:
     Move old data to history tables.
     """
     try:
-        current_videos = session.query(VideoData).all()
-        current_channels = session.query(Channels).all()
+        current_videos = session.exec(select(VideoData)).all()
+        current_channels = session.exec(select(Channels)).all()
 
         if not current_videos or not current_channels:
             print("No data to move")
@@ -56,17 +55,17 @@ def move_old_data(session: Session) -> None:
         # Query history tables
 
         prev_vid_histories = (
-            session.query(VideoHistory)
-            .filter(VideoHistory.video_id.in_(video_ids))
-            .order_by(VideoHistory.video_id, VideoHistory.scraped_at.desc())
+            session.exec(select(VideoHistory)
+            .where(col(VideoHistory.video_id).in_(video_ids))
+            .order_by(VideoHistory.video_id, col(VideoHistory.scraped_at).desc()))
             .all()
         )
         prev_map_vid = {h.video_id: h for h in prev_vid_histories}
 
         prev_channel_histories = (
-            session.query(ChannelHistory)
-            .filter(ChannelHistory.channel_id.in_(channel_ids))
-            .order_by(ChannelHistory.channel_id, ChannelHistory.scraped_at.desc())
+            session.exec(select(ChannelHistory)
+            .where(col(ChannelHistory.channel_id).in_(channel_ids))
+            .order_by(ChannelHistory.channel_id, col(ChannelHistory.scraped_at).desc()))
             .all()
         )
         prev_map_channel = {h.channel_id: h for h in prev_channel_histories}
@@ -158,7 +157,7 @@ def move_old_data(session: Session) -> None:
                     entry[f"{field[:-1]}_growth_per_day"] = growth
             c_history.append(entry)
 
-        session.execute(insert(VideoHistory), v_history)
+        session.execute(insert(VideoHistory), v_history) # Using sqlalchemy execute to allow bulk insertion
         session.execute(insert(ChannelHistory), c_history)
         session.execute(delete(VideoData))
         session.execute(delete(Channels))

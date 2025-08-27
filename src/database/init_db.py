@@ -1,7 +1,7 @@
 # (Reset and) initialize the database and populate it with categories from the YouTube API.
 from src.core.api import get_video_categories
-from src.database.base import Base
-from src.database.database import SessionLocal, engine
+from sqlmodel import SQLModel
+from src.database.database import get_session, engine
 from src.database.models import Categories
 
 
@@ -9,7 +9,7 @@ def reset_db():
     """
     Drop all tables in the database.
     """
-    Base.metadata.drop_all(bind=engine)
+    SQLModel.metadata.drop_all(bind=engine)
     print("Database reset")
 
 
@@ -18,10 +18,10 @@ def init_db():
     Initialize the database and create tables.
     """
     # Create all tables in the database
-    Base.metadata.create_all(bind=engine)
+    SQLModel.metadata.create_all(bind=engine)
     print("Database initialized and tables created.")
 
-    session = SessionLocal()
+    session = get_session()
 
     # Populate categories table
     categories = get_video_categories()

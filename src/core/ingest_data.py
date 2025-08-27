@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import distinct, func, select, update, union_all
+from sqlmodel import select, update, func, union_all, col
+from sqlalchemy import distinct
 
 from src.core.api import get_channel_data, scrape_data
-from src.database.database import SessionLocal, ingest_table, move_old_data
+from src.database.database import get_session, ingest_table, move_old_data
 from src.database.models import Categories, Channels, VideoData, VideoType, VideoHistory
 
 
@@ -10,11 +11,12 @@ def ingest_data():
     """
     Ingest data from the YouTube API into the database.
     """
-    session = SessionLocal()
+    session = get_session()
+    
     try:
         move_old_data(session)
-
-        categories = session.query(Categories).all()
+        
+        categories = session.exec(select(Categories).where(Categories.assignable)).all()
 
         # Scrape popular videos in each category
         cat_videos, channel_ids = [], set()
@@ -77,14 +79,8 @@ def ingest_data():
         print("Videos ingested successfully.")
 
         unique_videos = (
-            select(
-                VideoData.channel_id,
-                VideoData.video_id,
-                VideoData.like_count,
-                VideoData.comment_count,
-                VideoData.view_count,
-            )
-            .distinct(VideoData.channel_id, VideoData.video_id)
+            select(VideoData)
+            .distinct(col(VideoData.channel_id), col(VideoData.video_id))
             .subquery()
         )
 
@@ -148,6 +144,7 @@ def ingest_data():
         # Update channel averages and popular counts
         session.execute(
             update(Channels)
+            .where(col(Channels.channel_id) == col(VideoData.channel_id))
             .values(
                 like_count=total_likes,
                 comment_count=total_comments,
@@ -157,7 +154,6 @@ def ingest_data():
                 average_comments=avg_comments,
                 popular_count=popular_count,
             )
-            .where(Channels.channel_id == VideoData.channel_id)
         )
 
         session.commit()

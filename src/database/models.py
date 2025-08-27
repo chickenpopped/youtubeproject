@@ -1,26 +1,8 @@
-# This file defines the SQLAlchemy models for the YouTube video data and categories.
-
 import enum
-
-from sqlalchemy import (
-    ARRAY,
-    BigInteger,
-    Boolean,
-    Column,
-    DateTime,
-    Enum,
-    Float,
-    ForeignKey,
-    Integer,
-    Interval,
-    String,
-    Text,
-    UniqueConstraint,
-    func,
-)
-from sqlalchemy.orm import relationship
-
-from src.database.base import Base
+from sqlalchemy import Enum
+from typing import Optional, List
+from sqlmodel import SQLModel, Field, ARRAY, String, Column
+from datetime import datetime, timedelta
 
 
 class VideoType(enum.Enum):
@@ -28,150 +10,118 @@ class VideoType(enum.Enum):
     category = "category"
 
 
-class VideoData(Base):
-    __tablename__ = "video_data"
-
-    pk_id = Column(
-        Integer, primary_key=True, autoincrement=True
-    )  # Primary key for the table
-    video_id = Column(String(255), index=True)  # Id of the video
-    title = Column(String(255), nullable=False)
-    scraped_at = Column(DateTime, nullable=False, server_default=func.now())
-    description = Column(Text, nullable=True)
-    published_at = Column(DateTime, nullable=False)
-    view_count = Column(BigInteger, nullable=True)
-    like_count = Column(BigInteger, nullable=True)
-    comment_count = Column(Integer, nullable=True)
-    duration = Column(Interval, nullable=True)  # Stored as ISO8601 duration format
-    tags = Column(ARRAY(String), nullable=True)
-    scrape_type = Column(Enum(VideoType), nullable=False)  # Column for scrape type
-    scrape_category = Column(
-        Integer, nullable=True
-    )  # Category ID of scraped category for category scrape type
-    rank = Column(Integer, nullable=False)  # Rank of the video at the time of scrape
-    # Foreign key to channels table
-    channel_id = Column(String(255), ForeignKey("channels.channel_id"))
-    # Foreign key to categories table
-    category_id = Column(Integer, ForeignKey("categories.category_id"))
-
-    category = relationship("Categories", back_populates="video_data")
-    channel = relationship("Channels", back_populates="video_data")
-
-    __table_args__ = (
-        UniqueConstraint(
-            "video_id", "scrape_type", "scrape_category", name="uq_video_scrape"
-        ),
-    )
+class VideoData(SQLModel, table=True):
+    __tablename__: str = 'video_data'
+    pk_id: Optional[int] = Field(default=None, primary_key=True)
+    video_id: str = Field(index=True)
+    title: str
+    scraped_at: datetime = Field(default_factory=datetime.utcnow)
+    description: Optional[str] = None
+    published_at: datetime
+    view_count: Optional[int] = None
+    like_count: Optional[int] = None
+    comment_count: Optional[int] = None
+    duration: Optional[timedelta] = None
+    tags: Optional[list[str]] = Field(default_factory=list, sa_column=Column(ARRAY(String))) # current workaround for pydantic/sqlmodel list type validation
+    scrape_type: VideoType = Field(sa_column=Column(Enum(VideoType)))
+    scrape_category: Optional[int] = None
+    rank: int
+    channel_id: Optional[str] = Field(default=None, foreign_key="channels.channel_id")
+    category_id: Optional[int] = Field(default=None, foreign_key="categories.category_id")
+    
+    class Config:
+        arbitrary_types_allowed = True
 
 
 # Table for historical video data
-class VideoHistory(Base):
-    __tablename__ = "video_history"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)  # Unique ID for the row
-    video_id = Column(String(255), nullable=False)  # ID of the video
-    scraped_at = Column(DateTime, nullable=False)
-    title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    published_at = Column(DateTime, nullable=False)
-    view_count = Column(BigInteger, nullable=True)
-    view_count_delta = Column(BigInteger, default=0)
-    like_count = Column(BigInteger, nullable=True)
-    like_count_delta = Column(BigInteger, default=0)
-    comment_count = Column(Integer, nullable=True)
-    comment_count_delta = Column(Integer, default=0)
-    duration = Column(Interval, nullable=True)
-    tags = Column(ARRAY(String), nullable=True)
-    rank = Column(Integer, nullable=False)  # Rank of the video at the time of scrape
-    scrape_type = Column(Enum(VideoType), nullable=False)
-    scrape_category = Column(Integer, nullable=True)
-    channel_id = Column(String(255), nullable=False)
-    category_id = Column(Integer, nullable=True)  # Category ID of the video
-
-    days_since_scrape = Column(Float, nullable=True)
-
-    view_growth_per_day = Column(Float, nullable=True)
-    like_growth_per_day = Column(Float, nullable=True)
-    comment_growth_per_day = Column(Float, nullable=True)
+class VideoHistory(SQLModel, table=True):
+    __tablename__: str = "video_history"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    video_id: str
+    scraped_at: datetime
+    title: str
+    description: Optional[str] = None
+    published_at: datetime
+    view_count: Optional[int] = None
+    view_count_delta: Optional[int] = 0
+    like_count: Optional[int] = None
+    like_count_delta: Optional[int] = 0
+    comment_count: Optional[int] = None
+    comment_count_delta: Optional[int] = 0
+    duration: Optional[timedelta] = None
+    tags: Optional[list[str]] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
+    rank: int
+    scrape_type: VideoType = Field(sa_column=Column(Enum(VideoType)))
+    scrape_category: Optional[int] = None
+    channel_id: str
+    category_id: Optional[int] = None
+    days_since_scrape: Optional[float] = None
+    view_growth_per_day: Optional[float] = None
+    like_growth_per_day: Optional[float] = None
+    comment_growth_per_day: Optional[float] = None
 
 
-class Categories(Base):
-    __tablename__ = "categories"
-
-    category_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), nullable=False)
-    assignable = Column(Boolean, nullable=False)
-
-    video_data = relationship("VideoData", back_populates="category")
+class Categories(SQLModel, table=True):
+    category_id: int = Field(primary_key=True, index=True)
+    name: str
+    assignable: bool
 
 
-class Channels(Base):
-    __tablename__ = "channels"
-
-    channel_id = Column(String(255), primary_key=True, index=True)
-    scraped_at = Column(
-        DateTime, nullable=False, server_default=func.now()
-    )  # Timestamp of scrape
-    title = Column(String(50), nullable=False)
-    description = Column(Text, nullable=True)
-    published_at = Column(DateTime, nullable=False)
-    view_count = Column(BigInteger, nullable=True)  # Total view count of all videos
-    popular_view_count = Column(
-        BigInteger, nullable=True
-    )  # Total view count of popular videos
-    average_views = Column(BigInteger, nullable=True)  # Average views per popular video
-    subscriber_count = Column(BigInteger, nullable=True)
-    video_count = Column(Integer, nullable=True)
-    popular_count = Column(
-        Integer, nullable=True
-    )  # Number of popular videos from channel
-    like_count = Column(BigInteger, nullable=True) # Total like count for popular videos
-    comment_count = Column(BigInteger, nullable=True) # Total comment count for popular videos
-    average_likes = Column(BigInteger, nullable=True) # Average like count for popular videos
-    average_comments = Column(BigInteger, nullable=True) # Average comment count for popular videos
-
-    video_data = relationship("VideoData", back_populates="channel")
+class Channels(SQLModel, table=True):
+    # All statistics except view_count are for the channel's popular videos statistics
+    channel_id: str = Field(primary_key=True, index=True)
+    scraped_at: datetime = Field(default_factory=datetime.utcnow)
+    title: str
+    description: Optional[str] = None
+    published_at: datetime
+    view_count: Optional[int] = None
+    popular_view_count: Optional[int] = None
+    average_views: Optional[int] = None
+    subscriber_count: Optional[int] = None
+    video_count: Optional[int] = None
+    popular_count: Optional[int] = None
+    like_count: Optional[int] = None
+    comment_count: Optional[int] = None
+    average_likes: Optional[int] = None
+    average_comments: Optional[int] = None
 
 
-class ChannelHistory(Base):
-    __tablename__ = "channel_history"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)  # Unique ID for the row
-    channel_id = Column(String(255), nullable=False)  # ID of the channel
-    scraped_at = Column(DateTime, nullable=False)
-    title = Column(String(50), nullable=False)
-    description = Column(Text, nullable=True)
-    published_at = Column(DateTime, nullable=False)
-    view_count = Column(BigInteger, nullable=True)
-    view_count_delta = Column(BigInteger, nullable=True)
-    popular_view_count = Column(BigInteger, nullable=True)
-    popular_view_count_delta = Column(BigInteger, nullable=True)
-    average_views = Column(BigInteger, nullable=True)
-    average_views_delta = Column(BigInteger, nullable=True)
-    like_count = Column(BigInteger, nullable=True)
-    like_count_delta = Column(BigInteger, nullable=True)
-    average_likes = Column(BigInteger, nullable=True)
-    average_likes_delta = Column(BigInteger, nullable=True)
-    comment_count = Column(BigInteger, nullable=True)
-    comment_count_delta = Column(BigInteger, nullable=True)
-    average_comments = Column(BigInteger, nullable=True)
-    average_comments_delta = Column(BigInteger, nullable=True)
-    subscriber_count = Column(BigInteger, nullable=True)
-    subscriber_count_delta = Column(BigInteger, nullable=True)
-    video_count = Column(Integer, nullable=True)
-    video_count_delta = Column(Integer, nullable=True)
-    popular_count = Column(Integer, nullable=True)
-    popular_count_delta = Column(Integer, nullable=True)
-
-    days_since_scrape = Column(Float, nullable=True)
-
-    view_growth_per_day = Column(Float, nullable=True)
-    popular_view_growth_per_day = Column(Float, nullable=True)
-    average_view_growth_per_day = Column(Float, nullable=True)
-    like_growth_per_day = Column(Float, nullable=True)
-    average_like_growth_per_day = Column(Float, nullable=True)
-    comment_growth_per_day = Column(Float, nullable=True)
-    average_comment_growth_per_day = Column(Float, nullable=True)
-    subscriber_growth_per_day = Column(Float, nullable=True)
-    video_growth_per_day = Column(Float, nullable=True)
-    popular_count_growth_per_day = Column(Float, nullable=True)
+class ChannelHistory(SQLModel, table=True):
+    __tablename__: str = "channel_history"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    channel_id: str
+    scraped_at: datetime
+    title: str
+    description: Optional[str] = None
+    published_at: datetime
+    view_count: Optional[int] = None
+    view_count_delta: Optional[int] = None
+    popular_view_count: Optional[int] = None
+    popular_view_count_delta: Optional[int] = None
+    average_views: Optional[int] = None
+    average_views_delta: Optional[int] = None
+    like_count: Optional[int] = None
+    like_count_delta: Optional[int] = None
+    average_likes: Optional[int] = None
+    average_likes_delta: Optional[int] = None
+    comment_count: Optional[int] = None
+    comment_count_delta: Optional[int] = None
+    average_comments: Optional[int] = None
+    average_comments_delta: Optional[int] = None
+    subscriber_count: Optional[int] = None
+    subscriber_count_delta: Optional[int] = None
+    video_count: Optional[int] = None
+    video_count_delta: Optional[int] = None
+    popular_count: Optional[int] = None
+    popular_count_delta: Optional[int] = None
+    days_since_scrape: Optional[float] = None
+    view_growth_per_day: Optional[float] = None
+    popular_view_growth_per_day: Optional[float] = None
+    average_view_growth_per_day: Optional[float] = None
+    like_growth_per_day: Optional[float] = None
+    average_like_growth_per_day: Optional[float] = None
+    comment_growth_per_day: Optional[float] = None
+    average_comment_growth_per_day: Optional[float] = None
+    subscriber_growth_per_day: Optional[float] = None
+    video_growth_per_day: Optional[float] = None
+    popular_count_growth_per_day: Optional[float] = None
